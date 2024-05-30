@@ -1,10 +1,21 @@
 from owslib.csw import CatalogueServiceWeb
-from owslib.fes import PropertyIsLike
+from owslib.fes import PropertyIsLike, Or, And, PropertyIsNotEqualTo
 from xml.dom import minidom
 from tqdm import tqdm
 
-# Define the query to search for records containing 'gcmd'
-gcmd_query = PropertyIsLike("AnyText", "%gcmd%")
+# Define the queries to search for records using GCMD Keywords
+gcmd_query_lower = PropertyIsLike("AnyText", "%gcmd%")
+gcmd_query_upper = PropertyIsLike("AnyText", "%GCMD%")
+gcmd_query_full = PropertyIsLike("AnyText", "%Global Change Master Directory%")
+
+# Define the query to exclude records containing 'AODN Discovery Parameter Vocabulary'
+aodn_exclude_query = PropertyIsNotEqualTo(
+    "AnyText", "AODN Discovery Parameter Vocabulary"
+)
+
+# Combine all queries using Or and And filters
+combined_gcmd_query = Or([gcmd_query_lower, gcmd_query_upper, gcmd_query_full])
+final_query = And([combined_gcmd_query, aodn_exclude_query])
 
 # Connect to the CSW service
 csw = CatalogueServiceWeb(
@@ -13,7 +24,7 @@ csw = CatalogueServiceWeb(
 
 # Get the initial record to determine the total number of records
 csw.getrecords2(
-    constraints=[gcmd_query],
+    constraints=[final_query],
     outputschema="http://standards.iso.org/iso/19115/-3/mdb/2.0",
     esn="full",
     maxrecords=1,
@@ -30,7 +41,7 @@ batch_size = 10
 with tqdm(total=total_records, desc="Processing records") as pbar:
     for start_position in range(1, total_records + 1, batch_size):
         csw.getrecords2(
-            constraints=[gcmd_query],
+            constraints=[final_query],
             outputschema="http://standards.iso.org/iso/19115/-3/mdb/2.0",
             esn="full",
             startposition=start_position,
