@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "geonetwork-gcmd-extractor"
+version = "0.1.0"
+description = "A tool for extracting GCMD keywords of GeoNetwork records with CSW harvester"
+authors = ["Viet Nguyen"]
+license = "GNU"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+owslib = "^0.31.0"
+black = "^24.4.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
