@@ -36,8 +36,8 @@ csw.getrecords2(
 )
 
 # Total number of records
-# total_records = csw.results["matches"]
-total_records = 100
+total_records = csw.results["matches"]
+# total_records = 50
 print(f"Total records: {total_records}")
 
 gcmdKeywordsSet = set()
@@ -71,23 +71,39 @@ with tqdm(total=total_records, desc="Processing records") as pbar:
         )
         for rec in csw.records:
             xmldoc = minidom.parseString(csw.records[rec].xml)
-            try:
-                keywords = xmldoc.getElementsByTagName("gcx:Anchor")
-                for keyword in keywords:
-                    keywordValue = keyword.firstChild.nodeValue
+
+            descriptiveKeywords = xmldoc.getElementsByTagName("mri:descriptiveKeywords")
+            if descriptiveKeywords is not None:
+                for descriptiveKeyword in descriptiveKeywords:
+                    mriKeywords = descriptiveKeyword.getElementsByTagName("mri:keyword")
+                    if mriKeywords is not None:
+                        for mriKeyword in mriKeywords:
+                            gcoString = mriKeyword.getElementsByTagName(
+                                "gco:CharacterString"
+                            )
+                            if gcoString is not None:
+                                for content in gcoString:
+                                    gcmdKeyword = content.firstChild.nodeValue
+                                    if gcmdKeyword is not None and gcmdKeyword != "":
+                                        gcmdKeywordsSet.add(gcmdKeyword)
+
+            anchorKeywords = xmldoc.getElementsByTagName("gcx:Anchor")
+            if anchorKeywords is not None:
+                for anchorKeyword in anchorKeywords:
+                    keywordValue = anchorKeyword.firstChild.nodeValue
                     if (
-                        "gcmd" in keyword.getAttribute("xlink:href").lower()
+                        keywordValue is not None
+                        and keywordValue != ""
+                        and "gcmd" in anchorKeyword.getAttribute("xlink:href").lower()
                         and "geonetwork" not in keywordValue.lower()
                     ):
                         gcmdKeywordsSet.add(keywordValue)
-            except Exception:
+
+            if anchorKeywords is None and descriptiveKeywords is None:
                 failedList.add(rec)
 
         pbar.update(min(batch_size, total_records - start_position + 1))
-
-# Print all unique GCMD keywords
-for key in gcmdKeywordsSet:
-    print(key)
+    print("----------- Completed -----------")
 
 # Save the keywords to a file for future reference
 with open(files_to_check[0], "w") as file:
