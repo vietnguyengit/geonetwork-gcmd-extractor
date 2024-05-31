@@ -74,11 +74,13 @@ with tqdm(total=total_records, desc="Processing records") as pbar:
             if descriptiveKeywords is not None:
                 for descriptiveKeyword in descriptiveKeywords:
                     if (
-                        "GCMD" in descriptiveKeyword.toxml()
-                        or "gcmd" in descriptiveKeyword.toxml()
-                        or "Global Change Master Directory"
-                        in descriptiveKeyword.toxml()
-                        and "Palaeo Temporal Coverage" not in descriptiveKeyword.toxml()
+                        (
+                            "gcmd" in descriptiveKeyword.toxml().lower()
+                            or "global change master directory"
+                            in descriptiveKeyword.toxml().lower()
+                        )
+                        and "palaeo temporal coverage"
+                        not in descriptiveKeyword.toxml().lower()
                     ):
                         mriKeywords = descriptiveKeyword.getElementsByTagName(
                             "mri:keyword"
