@@ -362,15 +362,13 @@ files = [
 ]
 
 [[package]]
-name = "owslib"
-version = "0.31.0"
+name = "OWSLib"
+version = "0.32.dev0"
 description = "OGC Web Service utility library"
 optional = false
 python-versions = ">=3.6"
-files = [
-    {file = "OWSLib-0.31.0-py2.py3-none-any.whl", hash = "sha256:ab54d20974bd8ddd24ee5539c46a7829ec9e77ed0976724f635d1a3a321d3a39"},
-    {file = "OWSLib-0.31.0.tar.gz", hash = "sha256:2ed6540087445cc57d905138a590b6ae58624ec7661b5c1682ed4e3303bcd150"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 lxml = "*"
@@ -378,6 +376,12 @@ python-dateutil = ">=1.5"
 pytz = "*"
 pyyaml = "*"
 requests = ">=1.0"
+
+[package.source]
+type = "git"
+url = "https://github.com/vietnguyengit/OWSLib.git"
+reference = "exception-handling-bugs"
+resolved_reference = "ad993f7998725c094f09dc368bc19d29bc7fdd82"
 
 [[package]]
 name = "packaging"
@@ -596,4 +600,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "5acfebcc340d63b369b72b79ebe208e316c1b5fe386e6db2b1809a522d099fe9"
+content-hash = "82dd0bb2f2130752c3dc5edba55619fddc30befc622bf779e992027694ade489"
