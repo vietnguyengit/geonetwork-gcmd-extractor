@@ -35,16 +35,6 @@ csw.getrecords2(
     maxrecords=1,
 )
 
-# Total number of records
-total_records = csw.results["matches"]
-# total_records = 50
-print(f"Total records: {total_records}")
-
-gcmdKeywordsSet = set()
-failedList = set()
-batch_size = 10
-
-
 output_folder = "outputs"
 os.makedirs(output_folder, exist_ok=True)
 # List of files to check and delete if they exist, prefixed with the output folder
@@ -59,6 +49,14 @@ for file in files_to_check:
         print(f"{file} deleted.")
 
 
+# Total number of records
+total_records = csw.results["matches"]
+print(f"Total records: {total_records}")
+
+gcmdKeywordsSet = set()
+failedList = set()
+batch_size = 10
+
 # Loop through all records in batches with a progress bar
 with tqdm(total=total_records, desc="Processing records") as pbar:
     for start_position in range(1, total_records + 1, batch_size):
@@ -70,9 +68,9 @@ with tqdm(total=total_records, desc="Processing records") as pbar:
             maxrecords=batch_size,
         )
         for rec in csw.records:
-            xmldoc = minidom.parseString(csw.records[rec].xml)
+            xmlDoc = minidom.parseString(csw.records[rec].xml)
 
-            descriptiveKeywords = xmldoc.getElementsByTagName("mri:descriptiveKeywords")
+            descriptiveKeywords = xmlDoc.getElementsByTagName("mri:descriptiveKeywords")
             if descriptiveKeywords is not None:
                 for descriptiveKeyword in descriptiveKeywords:
                     if (
@@ -80,12 +78,14 @@ with tqdm(total=total_records, desc="Processing records") as pbar:
                         or "gcmd" in descriptiveKeyword.toxml()
                         or "Global Change Master Directory"
                         in descriptiveKeyword.toxml()
+                        and "Palaeo Temporal Coverage" not in descriptiveKeyword.toxml()
                     ):
                         mriKeywords = descriptiveKeyword.getElementsByTagName(
                             "mri:keyword"
                         )
                         if mriKeywords is not None:
                             for mriKeyword in mriKeywords:
+                                # case GCMD keywords under the gco:CharacterString tag
                                 gcoString = mriKeyword.getElementsByTagName(
                                     "gco:CharacterString"
                                 )
@@ -98,22 +98,22 @@ with tqdm(total=total_records, desc="Processing records") as pbar:
                                         except AttributeError:
                                             pass
 
-            anchorKeywords = xmldoc.getElementsByTagName("gcx:Anchor")
-            if anchorKeywords is not None:
-                for anchorKeyword in anchorKeywords:
-                    try:
-                        keywordValue = anchorKeyword.firstChild.nodeValue
+                                # case GCMD keywords under the gcx:Anchor tag
+                                gcxAnchor = mriKeyword.getElementsByTagName(
+                                    "gcx:Anchor"
+                                )
+                                if gcxAnchor is not None:
+                                    for content in gcxAnchor:
+                                        try:
+                                            gcmdKeywordsSet.add(
+                                                content.firstChild.nodeValue
+                                            )
+                                        except AttributeError:
+                                            pass
 
-                        if (
-                            "gcmd" in anchorKeyword.getAttribute("xlink:href").lower()
-                            and "geonetwork" not in keywordValue.lower()
-                        ):
-                            gcmdKeywordsSet.add(keywordValue)
-                    except AttributeError:
-                        pass
-
-            if anchorKeywords is None and descriptiveKeywords is None:
-                failedList.add(rec)
+                                # flag if eligible descriptiveKeyword doesn't have any GCMD keywords
+                                if gcoString is None and gcxAnchor is None:
+                                    failedList.add(rec)
 
         pbar.update(min(batch_size, total_records - start_position + 1))
     print("----------- Completed -----------")
