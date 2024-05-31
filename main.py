@@ -83,21 +83,26 @@ with tqdm(total=total_records, desc="Processing records") as pbar:
                             )
                             if gcoString is not None:
                                 for content in gcoString:
-                                    gcmdKeyword = content.firstChild.nodeValue
-                                    if gcmdKeyword is not None and gcmdKeyword != "":
-                                        gcmdKeywordsSet.add(gcmdKeyword)
+                                    try:
+                                        gcmdKeywordsSet.add(
+                                            content.firstChild.nodeValue
+                                        )
+                                    except AttributeError:
+                                        pass
 
             anchorKeywords = xmldoc.getElementsByTagName("gcx:Anchor")
             if anchorKeywords is not None:
                 for anchorKeyword in anchorKeywords:
-                    keywordValue = anchorKeyword.firstChild.nodeValue
-                    if (
-                        keywordValue is not None
-                        and keywordValue != ""
-                        and "gcmd" in anchorKeyword.getAttribute("xlink:href").lower()
-                        and "geonetwork" not in keywordValue.lower()
-                    ):
-                        gcmdKeywordsSet.add(keywordValue)
+                    try:
+                        keywordValue = anchorKeyword.firstChild.nodeValue
+
+                        if (
+                            "gcmd" in anchorKeyword.getAttribute("xlink:href").lower()
+                            and "geonetwork" not in keywordValue.lower()
+                        ):
+                            gcmdKeywordsSet.add(keywordValue)
+                    except AttributeError:
+                        pass
 
             if anchorKeywords is None and descriptiveKeywords is None:
                 failedList.add(rec)

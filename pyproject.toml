@@ -8,7 +8,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-owslib = "^0.31.0"
+owslib = {git = "https://github.com/vietnguyengit/OWSLib.git", rev = "exception-handling-bugs"}
 black = "^24.4.2"
 tqdm = "^4.66.4"
 
