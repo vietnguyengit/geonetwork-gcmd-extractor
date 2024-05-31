@@ -50,8 +50,7 @@ for file in files_to_check:
 
 
 # Total number of records
-# total_records = csw.results["matches"]
-total_records = 50
+total_records = csw.results["matches"]
 print(f"Total records: {total_records}")
 
 gcmdKeywordsSet = set()
