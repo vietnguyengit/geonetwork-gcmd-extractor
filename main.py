@@ -75,20 +75,28 @@ with tqdm(total=total_records, desc="Processing records") as pbar:
             descriptiveKeywords = xmldoc.getElementsByTagName("mri:descriptiveKeywords")
             if descriptiveKeywords is not None:
                 for descriptiveKeyword in descriptiveKeywords:
-                    mriKeywords = descriptiveKeyword.getElementsByTagName("mri:keyword")
-                    if mriKeywords is not None:
-                        for mriKeyword in mriKeywords:
-                            gcoString = mriKeyword.getElementsByTagName(
-                                "gco:CharacterString"
-                            )
-                            if gcoString is not None:
-                                for content in gcoString:
-                                    try:
-                                        gcmdKeywordsSet.add(
-                                            content.firstChild.nodeValue
-                                        )
-                                    except AttributeError:
-                                        pass
+                    if (
+                        "GCMD" in descriptiveKeyword.toxml()
+                        or "gcmd" in descriptiveKeyword.toxml()
+                        or "Global Change Master Directory"
+                        in descriptiveKeyword.toxml()
+                    ):
+                        mriKeywords = descriptiveKeyword.getElementsByTagName(
+                            "mri:keyword"
+                        )
+                        if mriKeywords is not None:
+                            for mriKeyword in mriKeywords:
+                                gcoString = mriKeyword.getElementsByTagName(
+                                    "gco:CharacterString"
+                                )
+                                if gcoString is not None:
+                                    for content in gcoString:
+                                        try:
+                                            gcmdKeywordsSet.add(
+                                                content.firstChild.nodeValue
+                                            )
+                                        except AttributeError:
+                                            pass
 
             anchorKeywords = xmldoc.getElementsByTagName("gcx:Anchor")
             if anchorKeywords is not None:
