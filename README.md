@@ -33,7 +33,7 @@ A Python script to connect to a CSW service and extract GCMD (Global Change Mast
 4. **Clone the repository:**
 
     ```bash
-    git clone https://github.com/vietnguyengit/geonetwork-gcmd-extractor
+    # after cloning the repo with git clone command
     cd geonetwork-gcmd-extractor
     ```
 
