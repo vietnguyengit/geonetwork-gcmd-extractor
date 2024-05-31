@@ -1,7 +1,13 @@
 from owslib.csw import CatalogueServiceWeb
-from owslib.fes import PropertyIsLike, Or, And, PropertyIsNotEqualTo
+from owslib.fes import (
+    PropertyIsLike,
+    Or,
+    And,
+    PropertyIsNotEqualTo,
+)
 from xml.dom import minidom
 from tqdm import tqdm
+import os
 
 # Define the queries to search for records using GCMD Keywords
 gcmd_query_lower = PropertyIsLike("AnyText", "%gcmd%")
@@ -26,16 +32,32 @@ csw = CatalogueServiceWeb(
 csw.getrecords2(
     constraints=[final_query],
     outputschema="http://standards.iso.org/iso/19115/-3/mdb/2.0",
-    esn="full",
     maxrecords=1,
 )
 
 # Total number of records
-total_records = csw.results["matches"]
+# total_records = csw.results["matches"]
+total_records = 100
 print(f"Total records: {total_records}")
 
 gcmdKeywordsSet = set()
+failedList = set()
 batch_size = 10
+
+
+output_folder = "outputs"
+os.makedirs(output_folder, exist_ok=True)
+# List of files to check and delete if they exist, prefixed with the output folder
+files_to_check = [
+    os.path.join(output_folder, "gcmd_keywords.txt"),
+    os.path.join(output_folder, "records_failed.txt"),
+]
+# Check and delete the files if they exist
+for file in files_to_check:
+    if os.path.exists(file):
+        os.remove(file)
+        print(f"{file} deleted.")
+
 
 # Loop through all records in batches with a progress bar
 with tqdm(total=total_records, desc="Processing records") as pbar:
@@ -47,17 +69,19 @@ with tqdm(total=total_records, desc="Processing records") as pbar:
             startposition=start_position,
             maxrecords=batch_size,
         )
-
         for rec in csw.records:
             xmldoc = minidom.parseString(csw.records[rec].xml)
-            keywords = xmldoc.getElementsByTagName("gcx:Anchor")
-            for keyword in keywords:
-                keywordValue = keyword.firstChild.nodeValue
-                if (
-                    "gcmd" in keyword.getAttribute("xlink:href").lower()
-                    and "geonetwork" not in keywordValue.lower()
-                ):
-                    gcmdKeywordsSet.add(keywordValue)
+            try:
+                keywords = xmldoc.getElementsByTagName("gcx:Anchor")
+                for keyword in keywords:
+                    keywordValue = keyword.firstChild.nodeValue
+                    if (
+                        "gcmd" in keyword.getAttribute("xlink:href").lower()
+                        and "geonetwork" not in keywordValue.lower()
+                    ):
+                        gcmdKeywordsSet.add(keywordValue)
+            except Exception:
+                failedList.add(rec)
 
         pbar.update(min(batch_size, total_records - start_position + 1))
 
@@ -66,6 +90,11 @@ for key in gcmdKeywordsSet:
     print(key)
 
 # Save the keywords to a file for future reference
-with open("gcmd_keywords.txt", "w") as file:
+with open(files_to_check[0], "w") as file:
     for key in gcmdKeywordsSet:
+        file.write(f"{key}\n")
+
+# Save the failed records to a file for future reference
+with open(files_to_check[1], "w") as file:
+    for key in failedList:
         file.write(f"{key}\n")
