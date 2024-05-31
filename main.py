@@ -50,7 +50,8 @@ for file in files_to_check:
 
 
 # Total number of records
-total_records = csw.results["matches"]
+# total_records = csw.results["matches"]
+total_records = 50
 print(f"Total records: {total_records}")
 
 gcmdKeywordsSet = set()
@@ -118,7 +119,8 @@ with tqdm(total=total_records, desc="Processing records") as pbar:
                                     failedList.add(rec)
 
         pbar.update(min(batch_size, total_records - start_position + 1))
-    print("----------- Completed -----------")
+
+print("----------- Completed -----------")
 
 # Save the keywords to a file for future reference
 with open(files_to_check[0], "w") as file:
