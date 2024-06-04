@@ -2,3 +2,4 @@
 .idea
 *.iml
 outputs/*.txt
+outputs/*.csv
