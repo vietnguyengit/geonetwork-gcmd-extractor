@@ -22,13 +22,13 @@ def create_queries():
     gcmd_query_full = PropertyIsLike("AnyText", "%Global Change Master Directory%")
 
     # for debugging only
-    # uuid_query = PropertyIsLike("Identifier", "f5625450-ee31-4511-9373-53ff4c6ef370")
+    uuid_query = PropertyIsLike("Identifier", "516811d7-cd7c-207a-e0440003ba8c79dd")
 
     combined_gcmd_query = Or([gcmd_query_lower, gcmd_query_upper, gcmd_query_full])
     aodn_exclude_query = PropertyIsNotEqualTo(
         "AnyText", "AODN Discovery Parameter Vocabulary"
     )
-    return And([combined_gcmd_query, aodn_exclude_query])
+    return And([combined_gcmd_query, aodn_exclude_query, uuid_query])
 
 
 # Setup CSW connection
@@ -115,19 +115,15 @@ def process_record(
                     thesaurus_value = extract_thesaurus_value(descriptive_keyword)
                     unique_gcmd_thesaurus.add(f'"{thesaurus_value}", {rec_id}')
 
-                    mri_keywords = descriptive_keyword.getElementsByTagName(
-                        "mri:keyword"
-                    )
-                    if mri_keywords is not None:
-                        for mri_keyword in mri_keywords:
-                            keyword = extract_keyword(mri_keyword)
-                            if keyword:
-                                unique_set.add(f'"{thesaurus_value}", "{keyword}"')
-                                non_unique_set.add(
-                                    f'"{thesaurus_value}", "{keyword}", {rec_id}'
-                                )
-                            else:
-                                failed_list.add(rec_id)
+                    found_keywords = extract_keywords(descriptive_keyword)
+                    if not found_keywords:
+                        failed_list.add(rec_id)
+                    else:
+                        for keyword in found_keywords:
+                            unique_set.add(f'"{thesaurus_value}", "{keyword}"')
+                            non_unique_set.add(
+                                f'"{thesaurus_value}", "{keyword}", {rec_id}'
+                            )
 
 
 # Extract thesaurus value from descriptive keyword
@@ -148,15 +144,18 @@ def extract_thesaurus_value(descriptive_keyword):
     return ""
 
 
-# Extract keyword from descriptive keyword
-def extract_keyword(mri_keyword):
-    keyword = get_string_value(mri_keyword, "gco:CharacterString") or get_string_value(
-        mri_keyword, "gcx:Anchor"
-    )
-    if keyword:
-        return keyword.replace('"', "")
-    else:
-        return None
+# Extract keywords from descriptive keyword
+def extract_keywords(descriptive_keyword):
+    mri_keywords = descriptive_keyword.getElementsByTagName("mri:keyword")
+    found_keywords = list()
+    if mri_keywords is not None:
+        for mri_keyword in mri_keywords:
+            keyword = get_string_value(
+                mri_keyword, "gco:CharacterString"
+            ) or get_string_value(mri_keyword, "gcx:Anchor")
+            if keyword:
+                found_keywords.append(keyword.replace('"', ""))
+    return found_keywords
 
 
 # Save results to files
