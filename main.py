@@ -115,14 +115,19 @@ def process_record(
                     thesaurus_value = extract_thesaurus_value(descriptive_keyword)
                     unique_gcmd_thesaurus.add(f'"{thesaurus_value}", {rec_id}')
 
-                    keyword = extract_keyword(descriptive_keyword)
-                    if keyword:
-                        unique_set.add(f'"{thesaurus_value}", "{keyword}"')
-                        non_unique_set.add(
-                            f'"{thesaurus_value}", "{keyword}", {rec_id}'
-                        )
-                    else:
-                        failed_list.add(rec_id)
+                    mri_keywords = descriptive_keyword.getElementsByTagName(
+                        "mri:keyword"
+                    )
+                    if mri_keywords is not None:
+                        for mri_keyword in mri_keywords:
+                            keyword = extract_keyword(mri_keyword)
+                            if keyword:
+                                unique_set.add(f'"{thesaurus_value}", "{keyword}"')
+                                non_unique_set.add(
+                                    f'"{thesaurus_value}", "{keyword}", {rec_id}'
+                                )
+                            else:
+                                failed_list.add(rec_id)
 
 
 # Extract thesaurus value from descriptive keyword
@@ -144,16 +149,14 @@ def extract_thesaurus_value(descriptive_keyword):
 
 
 # Extract keyword from descriptive keyword
-def extract_keyword(descriptive_keyword):
-    mri_keywords = descriptive_keyword.getElementsByTagName("mri:keyword")
-    if mri_keywords is not None:
-        for mri_keyword in mri_keywords:
-            keyword = get_string_value(
-                mri_keyword, "gco:CharacterString"
-            ) or get_string_value(mri_keyword, "gcx:Anchor")
-            if keyword:
-                return keyword.replace('"', "")
-    return None
+def extract_keyword(mri_keyword):
+    keyword = get_string_value(mri_keyword, "gco:CharacterString") or get_string_value(
+        mri_keyword, "gcx:Anchor"
+    )
+    if keyword:
+        return keyword.replace('"', "")
+    else:
+        return None
 
 
 # Save results to files
