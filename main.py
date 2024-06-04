@@ -22,13 +22,13 @@ def create_queries():
     gcmd_query_full = PropertyIsLike("AnyText", "%Global Change Master Directory%")
 
     # for debugging only
-    uuid_query = PropertyIsLike("Identifier", "516811d7-cd7c-207a-e0440003ba8c79dd")
+    # uuid_query = PropertyIsLike("Identifier", "516811d7-cd7c-207a-e0440003ba8c79dd")
 
     combined_gcmd_query = Or([gcmd_query_lower, gcmd_query_upper, gcmd_query_full])
     aodn_exclude_query = PropertyIsNotEqualTo(
         "AnyText", "AODN Discovery Parameter Vocabulary"
     )
-    return And([combined_gcmd_query, aodn_exclude_query, uuid_query])
+    return And([combined_gcmd_query, aodn_exclude_query])
 
 
 # Setup CSW connection
