@@ -57,9 +57,9 @@ def get_is_harvested(xml_string):
 
 def record_process(
     record,
-    unique_set_file,
-    non_unique_set_file,
-    unique_gcmd_thesaurus_file,
+    unique_set,
+    non_unique_set,
+    unique_gcmd_thesaurus_set,
     failed_list_file,
 ):
     metadata_uuid = record.identifier
@@ -104,30 +104,28 @@ def record_process(
     if not gcmd_keywords:
         failed_list_file.write(f"{metadata_uuid}\n")
     else:
-        unique_gcmd_thesaurus_file.write(f'"{thesaurus_title}", {metadata_uuid}\n')
+        unique_gcmd_thesaurus_set.add((thesaurus_title, metadata_uuid))
         for keyword in gcmd_keywords:
-            unique_set_file.write(f'"{thesaurus_title}", "{keyword}"\n')
-            non_unique_set_file.write(
-                f'{metadata_uuid}, "{metadata_title}", {is_harvested}, "{thesaurus_title}", {thesaurus_type}, "{keyword}"\n'
+            unique_set.add((thesaurus_title, keyword))
+            non_unique_set.add(
+                (
+                    metadata_uuid,
+                    metadata_title,
+                    is_harvested,
+                    thesaurus_title,
+                    thesaurus_type,
+                    keyword,
+                )
             )
 
 
 # Fetch records in batches and process them
 def fetch_and_process_records(csw, final_query, total_records):
-    with open(FILES_TO_CHECK[0], "w") as unique_set_file, open(
-        FILES_TO_CHECK[1], "w"
-    ) as non_unique_set_file, open(
-        FILES_TO_CHECK[2], "w"
-    ) as unique_gcmd_thesaurus_file, open(
-        FILES_TO_CHECK[3], "w"
-    ) as failed_list_file:
+    unique_set = set()
+    non_unique_set = set()
+    unique_gcmd_thesaurus_set = set()
 
-        # Write headers to the files
-        unique_set_file.write("thesaurus_title, gcmd_keyword\n")
-        non_unique_set_file.write(
-            "metadata_identifier, metadata_title, is_harvested, thesaurus_title, thesaurus_type, gcmd_keyword\n"
-        )
-        unique_gcmd_thesaurus_file.write("thesaurus_title, metadata_identifier\n")
+    with open(FILES_TO_CHECK[3], "w") as failed_list_file:
 
         with tqdm(total=total_records, desc="Processing records") as pbar:
             for start_position in range(1, total_records + 1, BATCH_SIZE):
@@ -141,12 +139,39 @@ def fetch_and_process_records(csw, final_query, total_records):
                 for rec in csw.records:
                     record_process(
                         csw.records[rec],
-                        unique_set_file,
-                        non_unique_set_file,
-                        unique_gcmd_thesaurus_file,
+                        unique_set,
+                        non_unique_set,
+                        unique_gcmd_thesaurus_set,
                         failed_list_file,
                     )
                 pbar.update(min(BATCH_SIZE, total_records - start_position + 1))
+
+    # Write unique and non-unique sets to their respective files
+    with open(FILES_TO_CHECK[0], "w") as unique_set_file:
+        unique_set_file.write("thesaurus_title, gcmd_keyword\n")
+        for thesaurus_title, keyword in unique_set:
+            unique_set_file.write(f'"{thesaurus_title}", "{keyword}"\n')
+
+    with open(FILES_TO_CHECK[1], "w") as non_unique_set_file:
+        non_unique_set_file.write(
+            "metadata_identifier, metadata_title, is_harvested, thesaurus_title, thesaurus_type, gcmd_keyword\n"
+        )
+        for (
+            metadata_uuid,
+            metadata_title,
+            is_harvested,
+            thesaurus_title,
+            thesaurus_type,
+            keyword,
+        ) in non_unique_set:
+            non_unique_set_file.write(
+                f'{metadata_uuid}, "{metadata_title}", {is_harvested}, "{thesaurus_title}", {thesaurus_type}, "{keyword}"\n'
+            )
+
+    with open(FILES_TO_CHECK[2], "w") as unique_gcmd_thesaurus_file:
+        unique_gcmd_thesaurus_file.write("thesaurus_title, metadata_identifier\n")
+        for thesaurus_title, metadata_uuid in unique_gcmd_thesaurus_set:
+            unique_gcmd_thesaurus_file.write(f'"{thesaurus_title}", {metadata_uuid}\n')
 
 
 # Main script execution
