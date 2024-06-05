@@ -22,13 +22,13 @@ def create_queries():
     gcmd_query_full = PropertyIsLike("AnyText", "%Global Change Master Directory%")
 
     # for debugging only
-    uuid_query = PropertyIsLike("Identifier", "516811d7-cd7c-207a-e0440003ba8c79dd")
+    # uuid_query = PropertyIsLike("Identifier", "516811d7-cd7c-207a-e0440003ba8c79dd")
 
     combined_gcmd_query = Or([gcmd_query_lower, gcmd_query_upper, gcmd_query_full])
     aodn_exclude_query = PropertyIsNotEqualTo(
         "AnyText", "AODN Discovery Parameter Vocabulary"
     )
-    return And([combined_gcmd_query, aodn_exclude_query, uuid_query])
+    return And([combined_gcmd_query, aodn_exclude_query])
 
 
 # Setup CSW connection
@@ -62,26 +62,43 @@ def record_process(
     record, unique_set, non_unique_set, unique_gcmd_thesaurus, failed_list
 ):
     metadata_uuid = record.identifier
-    metadata_title = None
-    thesaurus_title = None
-    thesaurus_type = None
+    metadata_title = ""
+    thesaurus_title = ""
+    thesaurus_type = ""
     gcmd_keywords = list()
 
     is_harvested = get_is_harvested(record.xml)
     for item in record.identification:
-        metadata_title = item.title
+        try:
+            metadata_title = item.title
+        except TypeError:
+            pass
         for md_keywords in item.keywords:
-            thesaurus = md_keywords.thesaurus
-            thesaurus_title = thesaurus["title"]
-            thesaurus_type = md_keywords.type
-            if thesaurus_title is not None and (
-                "gcmd" in thesaurus_title.lower()
-                or "global change master directory" in thesaurus_title.lower()
-            ):
-                if "palaeo temporal coverage" not in thesaurus_title.lower():
-                    for keyword in md_keywords.keywords:
-                        if keyword.name:
-                            gcmd_keywords.append(keyword.name)
+            if md_keywords is not None:
+                try:
+                    thesaurus = md_keywords.thesaurus
+                    try:
+                        thesaurus_title = thesaurus["title"]
+                        if (
+                            "gcmd" in thesaurus_title.lower()
+                            or "global change master directory"
+                            in thesaurus_title.lower()
+                        ):
+                            if (
+                                "palaeo temporal coverage"
+                                not in thesaurus_title.lower()
+                            ):
+                                for keyword in md_keywords.keywords:
+                                    if keyword.name:
+                                        gcmd_keywords.append(keyword.name)
+                    except TypeError:
+                        pass
+                    try:
+                        thesaurus_type = md_keywords.type
+                    except TypeError:
+                        pass
+                except TypeError:
+                    pass
 
     if not gcmd_keywords:
         failed_list.add(metadata_uuid)
