@@ -93,8 +93,7 @@ def record_process(
 
                             for keyword in md_keywords.keywords:
                                 if keyword.name:
-                                    keyword_name = keyword.name
-                                    gcmd_keywords.append(keyword_name.replace('"', ''))
+                                    gcmd_keywords.append(keyword.name)
                 except TypeError:
                     pass
 
@@ -107,11 +106,11 @@ def record_process(
             non_unique_set.add(
                 (
                     metadata_identifier,
-                    metadata_title,
+                    metadata_title.replace('"', ''),
                     is_harvested,
                     thesaurus_title,
                     thesaurus_type,
-                    keyword,
+                    keyword.replace('"', ''),
                 )
             )
 
