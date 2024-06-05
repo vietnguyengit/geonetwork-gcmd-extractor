@@ -79,22 +79,19 @@ def record_process(
                 try:
                     thesaurus = md_keywords.thesaurus
                     try:
-                        try:
-                            thesaurus_title = thesaurus["title"]
+                        thesaurus_title = thesaurus["title"]
+                        if thesaurus_title is not None and (
+                            "gcmd" in thesaurus_title.lower()
+                            or "global change master directory"
+                            in thesaurus_title.lower()
+                        ):
                             if (
-                                "gcmd" in thesaurus_title.lower()
-                                or "global change master directory"
-                                in thesaurus_title.lower()
+                                "palaeo temporal coverage"
+                                not in thesaurus_title.lower()
                             ):
-                                if (
-                                    "palaeo temporal coverage"
-                                    not in thesaurus_title.lower()
-                                ):
-                                    for keyword in md_keywords.keywords:
-                                        if keyword.name:
-                                            gcmd_keywords.append(keyword.name)
-                        except TypeError:
-                            pass
+                                for keyword in md_keywords.keywords:
+                                    if keyword.name:
+                                        gcmd_keywords.append(keyword.name)
                     except TypeError:
                         pass
                     try:
