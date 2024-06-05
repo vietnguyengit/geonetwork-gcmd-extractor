@@ -102,7 +102,7 @@ def record_process(
     else:
         unique_gcmd_thesaurus_set.add((thesaurus_title, metadata_identifier))
         for keyword in gcmd_keywords:
-            unique_set.add((thesaurus_title, keyword))
+            unique_set.add((thesaurus_title, keyword.replace('"', '')))
             non_unique_set.add(
                 (
                     metadata_identifier,
