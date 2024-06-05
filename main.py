@@ -93,7 +93,8 @@ def record_process(
 
                             for keyword in md_keywords.keywords:
                                 if keyword.name:
-                                    gcmd_keywords.append(keyword.name)
+                                    keyword_name = keyword.name
+                                    gcmd_keywords.append(keyword_name.replace('"', ''))
                 except TypeError:
                     pass
 
