@@ -1,6 +1,6 @@
 import os
 from owslib.csw import CatalogueServiceWeb
-from owslib.fes import PropertyIsLike, Or, And, PropertyIsNotEqualTo, PropertyIsEqualTo
+from owslib.fes import PropertyIsLike, Or, And, PropertyIsNotEqualTo
 from xml.dom import minidom
 from tqdm import tqdm
 
@@ -20,9 +20,6 @@ def create_queries():
     gcmd_query_lower = PropertyIsLike("AnyText", "%gcmd%")
     gcmd_query_upper = PropertyIsLike("AnyText", "%GCMD%")
     gcmd_query_full = PropertyIsLike("AnyText", "%Global Change Master Directory%")
-
-    # for debugging only
-    # uuid_query = PropertyIsLike("Identifier", "516811d7-cd7c-207a-e0440003ba8c79dd")
 
     combined_gcmd_query = Or([gcmd_query_lower, gcmd_query_upper, gcmd_query_full])
     aodn_exclude_query = PropertyIsNotEqualTo(
@@ -59,7 +56,11 @@ def get_is_harvested(xml_string):
 
 
 def record_process(
-    record, unique_set, non_unique_set, unique_gcmd_thesaurus, failed_list
+    record,
+    unique_set_file,
+    non_unique_set_file,
+    unique_gcmd_thesaurus_file,
+    failed_list_file,
 ):
     metadata_uuid = record.identifier
     metadata_title = ""
@@ -78,19 +79,22 @@ def record_process(
                 try:
                     thesaurus = md_keywords.thesaurus
                     try:
-                        thesaurus_title = thesaurus["title"]
-                        if (
-                            "gcmd" in thesaurus_title.lower()
-                            or "global change master directory"
-                            in thesaurus_title.lower()
-                        ):
+                        try:
+                            thesaurus_title = thesaurus["title"]
                             if (
-                                "palaeo temporal coverage"
-                                not in thesaurus_title.lower()
+                                "gcmd" in thesaurus_title.lower()
+                                or "global change master directory"
+                                in thesaurus_title.lower()
                             ):
-                                for keyword in md_keywords.keywords:
-                                    if keyword.name:
-                                        gcmd_keywords.append(keyword.name)
+                                if (
+                                    "palaeo temporal coverage"
+                                    not in thesaurus_title.lower()
+                                ):
+                                    for keyword in md_keywords.keywords:
+                                        if keyword.name:
+                                            gcmd_keywords.append(keyword.name)
+                        except TypeError:
+                            pass
                     except TypeError:
                         pass
                     try:
@@ -101,72 +105,51 @@ def record_process(
                     pass
 
     if not gcmd_keywords:
-        failed_list.add(metadata_uuid)
+        failed_list_file.write(f"{metadata_uuid}\n")
     else:
-        unique_gcmd_thesaurus.add(f'"{thesaurus_title}", {metadata_uuid}')
+        unique_gcmd_thesaurus_file.write(f'"{thesaurus_title}", {metadata_uuid}\n')
         for keyword in gcmd_keywords:
-            unique_set.add(f'"{thesaurus_title}", "{keyword}"')
-            non_unique_set.add(
-                f'{metadata_uuid}, "{metadata_title}", {is_harvested}, "{thesaurus_title}", {thesaurus_type}, "{keyword}"'
+            unique_set_file.write(f'"{thesaurus_title}", "{keyword}"\n')
+            non_unique_set_file.write(
+                f'{metadata_uuid}, "{metadata_title}", {is_harvested}, "{thesaurus_title}", {thesaurus_type}, "{keyword}"\n'
             )
 
 
 # Fetch records in batches and process them
 def fetch_and_process_records(csw, final_query, total_records):
-    unique_gcmd_keywords_set = set()
-    non_unique_gcmd_keywords_set = set()
-    unique_gcmd_thesaurus = set()
-    failed_list = set()
+    with open(FILES_TO_CHECK[0], "w") as unique_set_file, open(
+        FILES_TO_CHECK[1], "w"
+    ) as non_unique_set_file, open(
+        FILES_TO_CHECK[2], "w"
+    ) as unique_gcmd_thesaurus_file, open(
+        FILES_TO_CHECK[3], "w"
+    ) as failed_list_file:
 
-    with tqdm(total=total_records, desc="Processing records") as pbar:
-        for start_position in range(1, total_records + 1, BATCH_SIZE):
-            csw.getrecords2(
-                constraints=[final_query],
-                outputschema="http://standards.iso.org/iso/19115/-3/mdb/2.0",
-                esn="full",
-                startposition=start_position,
-                maxrecords=BATCH_SIZE,
-            )
-            for rec in csw.records:
-                record_process(
-                    csw.records[rec],
-                    unique_gcmd_keywords_set,
-                    non_unique_gcmd_keywords_set,
-                    unique_gcmd_thesaurus,
-                    failed_list,
-                )
-            pbar.update(min(BATCH_SIZE, total_records - start_position + 1))
-
-    return (
-        unique_gcmd_keywords_set,
-        non_unique_gcmd_keywords_set,
-        unique_gcmd_thesaurus,
-        failed_list,
-    )
-
-
-# Save results to files
-def save_results(unique_set, non_unique_set, unique_gcmd_thesaurus, failed_list):
-    with open(FILES_TO_CHECK[0], "w") as file:
-        file.write("Thesaurus, Keywords\n")
-        for key in unique_set:
-            file.write(f"{key}\n")
-
-    with open(FILES_TO_CHECK[1], "w") as file:
-        file.write(
-            "metadata_uuid, metadata_title, isharvested, thesaurus, type, keyword\n"
+        # Write headers to the files
+        unique_set_file.write("thesaurus_title, gcmd_keyword\n")
+        non_unique_set_file.write(
+            "metadata_identifier, metadata_title, is_harvested, thesaurus_title, thesaurus_type, gcmd_keyword\n"
         )
-        for key in non_unique_set:
-            file.write(f"{key}\n")
+        unique_gcmd_thesaurus_file.write("thesaurus_title, metadata_identifier\n")
 
-    with open(FILES_TO_CHECK[2], "w") as file:
-        file.write("Thesaurus, Record's Identifier\n")
-        for key in unique_gcmd_thesaurus:
-            file.write(f"{key}\n")
-
-    with open(FILES_TO_CHECK[3], "w") as file:
-        for key in failed_list:
-            file.write(f"{key}\n")
+        with tqdm(total=total_records, desc="Processing records") as pbar:
+            for start_position in range(1, total_records + 1, BATCH_SIZE):
+                csw.getrecords2(
+                    constraints=[final_query],
+                    outputschema="http://standards.iso.org/iso/19115/-3/mdb/2.0",
+                    esn="full",
+                    startposition=start_position,
+                    maxrecords=BATCH_SIZE,
+                )
+                for rec in csw.records:
+                    record_process(
+                        csw.records[rec],
+                        unique_set_file,
+                        non_unique_set_file,
+                        unique_gcmd_thesaurus_file,
+                        failed_list_file,
+                    )
+                pbar.update(min(BATCH_SIZE, total_records - start_position + 1))
 
 
 # Main script execution
@@ -185,18 +168,7 @@ def main():
     initialise_output()
     print(f"Total records: {total_records}")
 
-    (
-        unique_gcmd_keywords_set,
-        non_unique_gcmd_keywords_set,
-        unique_gcmd_thesaurus,
-        failed_list,
-    ) = fetch_and_process_records(csw, final_query, total_records)
-    save_results(
-        unique_gcmd_keywords_set,
-        non_unique_gcmd_keywords_set,
-        unique_gcmd_thesaurus,
-        failed_list,
-    )
+    fetch_and_process_records(csw, final_query, total_records)
 
     print("----------- Completed -----------")
 
