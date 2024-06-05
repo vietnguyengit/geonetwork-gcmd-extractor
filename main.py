@@ -22,13 +22,13 @@ def create_queries():
     gcmd_query_full = PropertyIsLike("AnyText", "%Global Change Master Directory%")
 
     # for debugging only
-    # uuid_query = PropertyIsLike("Identifier", "516811d7-cd7c-207a-e0440003ba8c79dd")
+    uuid_query = PropertyIsLike("Identifier", "516811d7-cd7c-207a-e0440003ba8c79dd")
 
     combined_gcmd_query = Or([gcmd_query_lower, gcmd_query_upper, gcmd_query_full])
     aodn_exclude_query = PropertyIsNotEqualTo(
         "AnyText", "AODN Discovery Parameter Vocabulary"
     )
-    return And([combined_gcmd_query, aodn_exclude_query])
+    return And([combined_gcmd_query, aodn_exclude_query, uuid_query])
 
 
 # Setup CSW connection
@@ -38,18 +38,6 @@ def setup_csw_service():
     )
 
 
-# Utility function to get string value from XML element
-def get_string_value(element, tag):
-    string_tag = element.getElementsByTagName(tag)
-    if string_tag is not None:
-        for string_element in string_tag:
-            try:
-                return string_element.firstChild.nodeValue
-            except AttributeError:
-                pass
-    return None
-
-
 # Initialise output folder and files
 def initialise_output():
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
@@ -57,6 +45,53 @@ def initialise_output():
         if os.path.exists(file):
             os.remove(file)
             print(f"{file} deleted.")
+
+
+def get_is_harvested(xml_string):
+    xml_doc = minidom.parseString(xml_string)
+    isHarvested_tag = xml_doc.getElementsByTagName("isHarvested")
+    if isHarvested_tag:
+        for node in isHarvested_tag:
+            status = node.firstChild.nodeValue
+            if status == "y":
+                return True
+    return False
+
+
+def record_process(
+    record, unique_set, non_unique_set, unique_gcmd_thesaurus, failed_list
+):
+    metadata_uuid = record.identifier
+    metadata_title = None
+    thesaurus_title = None
+    thesaurus_type = None
+    gcmd_keywords = list()
+
+    is_harvested = get_is_harvested(record.xml)
+    for item in record.identification:
+        metadata_title = item.title
+        for md_keywords in item.keywords:
+            thesaurus = md_keywords.thesaurus
+            thesaurus_title = thesaurus["title"]
+            thesaurus_type = md_keywords.type
+            if thesaurus_title is not None and (
+                "gcmd" in thesaurus_title.lower()
+                or "global change master directory" in thesaurus_title.lower()
+            ):
+                if "palaeo temporal coverage" not in thesaurus_title.lower():
+                    for keyword in md_keywords.keywords:
+                        if keyword.name:
+                            gcmd_keywords.append(keyword.name)
+
+    if not gcmd_keywords:
+        failed_list.add(metadata_uuid)
+    else:
+        unique_gcmd_thesaurus.add(f'"{thesaurus_title}", {metadata_uuid}')
+        for keyword in gcmd_keywords:
+            unique_set.add(f'"{thesaurus_title}", "{keyword}"')
+            non_unique_set.add(
+                f'{metadata_uuid}, "{metadata_title}", {is_harvested}, "{thesaurus_title}", {thesaurus_type}, "{keyword}"'
+            )
 
 
 # Fetch records in batches and process them
@@ -76,9 +111,8 @@ def fetch_and_process_records(csw, final_query, total_records):
                 maxrecords=BATCH_SIZE,
             )
             for rec in csw.records:
-                process_record(
-                    csw.records[rec].xml,
-                    rec,
+                record_process(
+                    csw.records[rec],
                     unique_gcmd_keywords_set,
                     non_unique_gcmd_keywords_set,
                     unique_gcmd_thesaurus,
@@ -94,70 +128,6 @@ def fetch_and_process_records(csw, final_query, total_records):
     )
 
 
-# Process individual record
-def process_record(
-    xml_string, rec_id, unique_set, non_unique_set, unique_gcmd_thesaurus, failed_list
-):
-    xml_doc = minidom.parseString(xml_string)
-    descriptive_keywords = xml_doc.getElementsByTagName("mri:descriptiveKeywords")
-
-    if descriptive_keywords is not None:
-        for descriptive_keyword in descriptive_keywords:
-            if (
-                "gcmd" in descriptive_keyword.toxml().lower()
-                or "global change master directory"
-                in descriptive_keyword.toxml().lower()
-            ):
-                if (
-                    "palaeo temporal coverage"
-                    not in descriptive_keyword.toxml().lower()
-                ):
-                    thesaurus_value = extract_thesaurus_value(descriptive_keyword)
-                    unique_gcmd_thesaurus.add(f'"{thesaurus_value}", {rec_id}')
-
-                    found_keywords = extract_keywords(descriptive_keyword)
-                    if not found_keywords:
-                        failed_list.add(rec_id)
-                    else:
-                        for keyword in found_keywords:
-                            unique_set.add(f'"{thesaurus_value}", "{keyword}"')
-                            non_unique_set.add(
-                                f'"{thesaurus_value}", "{keyword}", {rec_id}'
-                            )
-
-
-# Extract thesaurus value from descriptive keyword
-def extract_thesaurus_value(descriptive_keyword):
-    mri_thesaurus_name_tag = descriptive_keyword.getElementsByTagName(
-        "mri:thesaurusName"
-    )
-    if mri_thesaurus_name_tag is not None:
-        for mri_thesaurus_name_element in mri_thesaurus_name_tag:
-            thesaurus_title_tag = mri_thesaurus_name_element.getElementsByTagName(
-                "cit:title"
-            )
-            if thesaurus_title_tag is not None:
-                for thesaurus_title_element in thesaurus_title_tag:
-                    return get_string_value(
-                        thesaurus_title_element, "gco:CharacterString"
-                    )
-    return ""
-
-
-# Extract keywords from descriptive keyword
-def extract_keywords(descriptive_keyword):
-    mri_keywords = descriptive_keyword.getElementsByTagName("mri:keyword")
-    found_keywords = list()
-    if mri_keywords is not None:
-        for mri_keyword in mri_keywords:
-            keyword = get_string_value(
-                mri_keyword, "gco:CharacterString"
-            ) or get_string_value(mri_keyword, "gcx:Anchor")
-            if keyword:
-                found_keywords.append(keyword.replace('"', ""))
-    return found_keywords
-
-
 # Save results to files
 def save_results(unique_set, non_unique_set, unique_gcmd_thesaurus, failed_list):
     with open(FILES_TO_CHECK[0], "w") as file:
@@ -166,7 +136,9 @@ def save_results(unique_set, non_unique_set, unique_gcmd_thesaurus, failed_list)
             file.write(f"{key}\n")
 
     with open(FILES_TO_CHECK[1], "w") as file:
-        file.write("Thesaurus, Keywords, Record's Identifier\n")
+        file.write(
+            "metadata_uuid, metadata_title, isharvested, thesaurus, type, keyword\n"
+        )
         for key in non_unique_set:
             file.write(f"{key}\n")
 
