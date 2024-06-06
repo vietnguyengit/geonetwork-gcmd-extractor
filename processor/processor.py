@@ -219,18 +219,20 @@ class GCMDProcessor:
                     f'"{thesaurus_title}", {metadata_identifier}\n'
                 )
 
-    def run(self):
+    def run(self, total_records=None):
         final_query = create_queries()
         self.setup_csw_service()
-        # Get the initial record to determine the total number of records
-        self.csw.getrecords2(
-            constraints=[final_query],
-            outputschema=self.output_schema,
-            maxrecords=1,
-        )
-        # total_records = self.csw.results["matches"]
-        total_records = 30
+        # Get the initial record to determine the total number of records if not in test mode
+        if total_records is None:
+            self.csw.getrecords2(
+                constraints=[final_query],
+                outputschema=self.output_schema,
+                maxrecords=1,
+            )
+            total_records = self.csw.results["matches"]
         self.initialise_output()
+        print("---------------------------------")
         print(f"Total records: {total_records}")
         self.fetch_and_process_records(final_query, total_records)
-        print("----------- Completed -----------")
+        print("---------------------------------")
+        print("Completed")
