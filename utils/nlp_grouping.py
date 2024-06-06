@@ -1,14 +1,14 @@
 from collections import defaultdict
 import spacy
-from spellchecker import SpellChecker
+import enchant
 
 
 class GroupingSimilarTexts:
     def __init__(self):
         # Load SpaCy model
         self.nlp = spacy.load("en_core_web_md")
-        # Initialise spellchecker
-        self.spell = SpellChecker()
+        # Initialise Australian English spellchecker using pyenchant
+        self.spell = enchant.Dict("en_AU")
 
     def preprocess(self, text):
         """Preprocess a text by correcting typos, tokenizing, and lemmatizing."""
@@ -17,7 +17,11 @@ class GroupingSimilarTexts:
         corrected_words = []
         # Correct spelling for each word, only if needed
         for token in doc:
-            corrected_word = self.spell.correction(token.text)
+            if self.spell.check(token.text):
+                corrected_word = token.text
+            else:
+                suggestions = self.spell.suggest(token.text)
+                corrected_word = suggestions[0] if suggestions else token.text
             corrected_words.append(corrected_word)
 
         # Lemmatize the corrected words
@@ -32,6 +36,4 @@ class GroupingSimilarTexts:
         for value in values:
             preprocessed_value = self.preprocess(value)
             grouped_values[preprocessed_value].append(value)  # Retain original casing
-
-        # Optionally, return only the canonical forms
         return list(grouped_values.keys())

@@ -5,6 +5,32 @@ from owslib.fes import PropertyIsLike, Or, And, PropertyIsNotEqualTo
 from xml.dom import minidom
 from tqdm import tqdm
 
+# from utils.nlp_grouping import GroupingSimilarTexts
+
+
+def create_queries():
+    gcmd_query_lower = PropertyIsLike("AnyText", "%%gcmd%%")
+    gcmd_query_upper = PropertyIsLike("AnyText", "%%GCMD%%")
+    gcmd_query_full = PropertyIsLike("AnyText", "%%Global Change Master Directory%%")
+    combined_gcmd_query = Or([gcmd_query_lower, gcmd_query_upper, gcmd_query_full])
+    aodn_exclude_query = PropertyIsNotEqualTo(
+        "AnyText", "AODN Discovery Parameter Vocabulary"
+    )
+    return And([combined_gcmd_query, aodn_exclude_query])
+
+
+def load_config(config_path):
+    with open(config_path, "r") as f:
+        return json.load(f)
+
+
+def process_keyword(keyword):
+    if "|" in keyword:
+        return keyword.split("|")[-1].strip()
+    elif ">" in keyword:
+        return keyword.split(">")[-1].strip()
+    return keyword.strip()
+
 
 def get_is_harvested(xml_string):
     xml_doc = minidom.parseString(xml_string)
@@ -76,22 +102,6 @@ def record_process(
             )
 
 
-def load_config(config_path):
-    with open(config_path, "r") as f:
-        return json.load(f)
-
-
-def create_queries():
-    gcmd_query_lower = PropertyIsLike("AnyText", "%%gcmd%%")
-    gcmd_query_upper = PropertyIsLike("AnyText", "%%GCMD%%")
-    gcmd_query_full = PropertyIsLike("AnyText", "%%Global Change Master Directory%%")
-    combined_gcmd_query = Or([gcmd_query_lower, gcmd_query_upper, gcmd_query_full])
-    aodn_exclude_query = PropertyIsNotEqualTo(
-        "AnyText", "AODN Discovery Parameter Vocabulary"
-    )
-    return And([combined_gcmd_query, aodn_exclude_query])
-
-
 class GCMDProcessor:
     def __init__(self, config_path):
         self.config = load_config(config_path)
@@ -108,6 +118,9 @@ class GCMDProcessor:
             ),
             "records_failed_file": os.path.join(
                 self.output_folder, self.config["records_failed_file"]
+            ),
+            "non_unique_last_words_file": os.path.join(
+                self.output_folder, self.config["non_unique_last_words_file"]
             ),
         }
         self.csw_url = self.config["csw_url"]
@@ -129,6 +142,7 @@ class GCMDProcessor:
         unique_set = set()
         non_unique_set = set()
         unique_gcmd_thesaurus_set = set()
+
         with open(self.files_to_check["records_failed_file"], "w") as failed_list_file:
             with tqdm(total=total_records, desc="Processing records") as pbar:
                 for start_position in range(1, total_records + 1, self.batch_size):
@@ -158,6 +172,7 @@ class GCMDProcessor:
             unique_set_file.write("thesaurus_title, gcmd_keyword\n")
             for thesaurus_title, keyword in unique_set:
                 unique_set_file.write(f'"{thesaurus_title}", "{keyword}"\n')
+
         with open(
             self.files_to_check["non_unique_gcmd_keywords_file"], "w"
         ) as non_unique_set_file:
@@ -175,6 +190,26 @@ class GCMDProcessor:
                 non_unique_set_file.write(
                     f'{metadata_identifier}, "{metadata_title}", {is_harvested}, "{thesaurus_title}", {thesaurus_type}, "{keyword}"\n'
                 )
+
+        with open(
+            self.files_to_check["non_unique_last_words_file"], "w"
+        ) as non_unique_set_file:
+            non_unique_set_file.write(
+                "metadata_identifier, metadata_title, is_harvested, thesaurus_title, thesaurus_type, last_word_term\n"
+            )
+            for (
+                metadata_identifier,
+                metadata_title,
+                is_harvested,
+                thesaurus_title,
+                thesaurus_type,
+                keyword,
+            ) in non_unique_set:
+                last_term_word = str(process_keyword(keyword.replace('"', ""))).upper()
+                non_unique_set_file.write(
+                    f'{metadata_identifier}, "{metadata_title}", {is_harvested}, "{thesaurus_title}", {thesaurus_type}, "{last_term_word}"\n'
+                )
+
         with open(
             self.files_to_check["unique_gcmd_thesaurus_file"], "w"
         ) as unique_gcmd_thesaurus_file:
@@ -194,7 +229,7 @@ class GCMDProcessor:
             maxrecords=1,
         )
         # total_records = self.csw.results["matches"]
-        total_records = 10
+        total_records = 30
         self.initialise_output()
         print(f"Total records: {total_records}")
         self.fetch_and_process_records(final_query, total_records)
