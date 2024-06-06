@@ -31,7 +31,7 @@ def create_queries():
 # Setup CSW connection
 def setup_csw_service():
     return CatalogueServiceWeb(
-        "https://catalogue.aodn.org.au/geonetwork/srv/eng/csw?request=GetCapabilities&service=CSW&version=2.0.2"
+        "https://geonetwork-edge.edge.aodn.org.au/geonetwork/srv/eng/csw?request=GetCapabilities&service=CSW&version=2.0.2"
     )
 
 
@@ -102,15 +102,15 @@ def record_process(
     else:
         unique_gcmd_thesaurus_set.add((thesaurus_title, metadata_identifier))
         for keyword in gcmd_keywords:
-            unique_set.add((thesaurus_title, keyword.replace('"', '')))
+            unique_set.add((thesaurus_title, keyword.replace('"', "")))
             non_unique_set.add(
                 (
                     metadata_identifier,
-                    metadata_title.replace('"', ''),
+                    metadata_title.replace('"', ""),
                     is_harvested,
                     thesaurus_title,
                     thesaurus_type,
-                    keyword.replace('"', ''),
+                    keyword.replace('"', ""),
                 )
             )
 
