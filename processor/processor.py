@@ -37,9 +37,7 @@ def get_is_harvested(xml_string):
     is_harvested_tag = xml_doc.getElementsByTagName("isHarvested")
     if is_harvested_tag:
         for node in is_harvested_tag:
-            if node.firstChild.nodeValue:
-                status = str(node.firstChild.nodeValue)
-                return status
+            return node.firstChild.nodeValue
     return None
 
 
