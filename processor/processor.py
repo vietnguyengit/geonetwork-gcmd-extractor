@@ -34,13 +34,13 @@ def process_keyword(keyword):
 
 def get_is_harvested(xml_string):
     xml_doc = minidom.parseString(xml_string)
-    isHarvested_tag = xml_doc.getElementsByTagName("isHarvested")
-    if isHarvested_tag:
-        for node in isHarvested_tag:
-            status = node.firstChild.nodeValue
-            if status == "y":
-                return True
-    return False
+    is_harvested_tag = xml_doc.getElementsByTagName("isHarvested")
+    if is_harvested_tag:
+        for node in is_harvested_tag:
+            if node.firstChild.nodeValue:
+                status = str(node.firstChild.nodeValue)
+                return status
+    return None
 
 
 def record_process(
