@@ -1,7 +1,11 @@
 
 # GCMD Keywords Extractor
 
-A Python script to connect to a CSW service and extract GCMD (Global Change Master Directory) keywords from metadata records from AODN's GeoNetwork catalog.
+A Python tool for extracting GCMD (Global Change Master Directory) keywords used by metadata records from AODN's GeoNetwork catalog via the CSW service.
+
+This tool assists the AODN Metadata Governance Officer in extracting GCMD keyword on-demand reports.
+
+It works with the CSW service of both GeoNetwork3 and GeoNetwork4.
 
 ### Requirements
 
@@ -45,13 +49,39 @@ A Python script to connect to a CSW service and extract GCMD (Global Change Mast
 
 ### Usage
 
+Configurations are defined in `config/config.json`, you can change CSW service source URL in there for example.
+
 Run the script:
 
 ```bash
 poetry run python main.py
 ```
 
-Output files will be generated in the `outputs` folder:
+For parameter usage instruction
+```bash
+poetry run python main.py --help
+```
 
-- `gcmd_keywords.txt`: Contains extracted GCMD keywords.
-- `records_failed.txt`: Contains IDs of records that do not have GCMD keywords and may require manual inspection.
+### NLP Grouping Similar Texts
+
+There is an implementation for using NLP to fuzzy group similar texts regardless of typos, plurals, case sensitivity, etc. For example:
+
+Inputs:
+```python
+["Sea surface tempoerature", "SEA SURFACE TEMPERATUR", "car", "cars", "elephant", "ellephent", "antarticca"]
+```
+
+Outputs:
+```python
+['SEA SURFACE TEMPERATURE', 'CAR', 'ELEPHANT', 'ANTARCTICA']
+```
+
+This module is not used in the processor class; it is there for reference purposes. To use it, after running `poetry install`, you might want to run `poetry run download-spacy-model` and then import it where needed.
+
+```python
+from utils.nlp_grouping import GroupingSimilarTexts
+```
+
+### Extracted results
+
+Output files will be generated in the `outputs` folder.
