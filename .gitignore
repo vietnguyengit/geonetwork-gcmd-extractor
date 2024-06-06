@@ -4,7 +4,7 @@
 outputs/*.txt
 outputs/*.csv
 
-*#
+**/*#
 
 dev.py
 

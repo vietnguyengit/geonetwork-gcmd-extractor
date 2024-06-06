@@ -14,8 +14,8 @@ python = "^3.10"
 owslib = {git = "https://github.com/geopython/OWSLib", rev = "master"}
 black = "^24.4.2"
 tqdm = "^4.66.4"
-rapidfuzz = "^3.9.3"
 spacy = "^3.7.5"
+pyspellchecker = "^0.8.1"
 
 [tool.poetry.scripts]
 download-spacy-model = "scripts.download_spacy_model:run"
