@@ -34,11 +34,10 @@ def process_keyword(keyword):
 
 def get_is_harvested(xml_string):
     xml_doc = minidom.parseString(xml_string)
-    isHarvested_tag = xml_doc.getElementsByTagName("isHarvested")
-    if isHarvested_tag:
-        for node in isHarvested_tag:
-            status = node.firstChild.nodeValue
-            if status == "y":
+    is_harvested_tag = xml_doc.getElementsByTagName("isHarvested")
+    if is_harvested_tag:
+        for node in is_harvested_tag:
+            if "y" in node.toxml().lower():
                 return True
     return False
 
@@ -49,6 +48,7 @@ def record_process(
     non_unique_set,
     unique_gcmd_thesaurus_set,
     failed_list_file,
+    is_harvested_by_identifier,
 ):
     metadata_identifier = record.identifier
     metadata_title = ""
@@ -56,6 +56,7 @@ def record_process(
     thesaurus_type = ""
     gcmd_keywords = []
     is_harvested = get_is_harvested(record.xml)
+
     for item in record.identification:
         try:
             metadata_title = item.title
@@ -90,6 +91,7 @@ def record_process(
         unique_gcmd_thesaurus_set.add((thesaurus_title, metadata_identifier))
         for keyword in gcmd_keywords:
             unique_set.add((thesaurus_title, keyword.replace('"', "")))
+            is_harvested_by_identifier.add((metadata_identifier, is_harvested))
             non_unique_set.add(
                 (
                     metadata_identifier,
@@ -119,8 +121,8 @@ class GCMDProcessor:
             "records_failed_file": os.path.join(
                 self.output_folder, self.config["records_failed_file"]
             ),
-            "non_unique_last_words_file": os.path.join(
-                self.output_folder, self.config["non_unique_last_words_file"]
+            "is_harvested_by_identifier_file": os.path.join(
+                self.output_folder, self.config["is_harvested_by_identifier_file"]
             ),
         }
         self.csw_url = self.config["csw_url"]
@@ -142,6 +144,7 @@ class GCMDProcessor:
         unique_set = set()
         non_unique_set = set()
         unique_gcmd_thesaurus_set = set()
+        is_harvested_by_identifier = set()
 
         with open(self.files_to_check["records_failed_file"], "w") as failed_list_file:
             with tqdm(total=total_records, desc="Processing records") as pbar:
@@ -160,6 +163,7 @@ class GCMDProcessor:
                             non_unique_set,
                             unique_gcmd_thesaurus_set,
                             failed_list_file,
+                            is_harvested_by_identifier,
                         )
                     pbar.update(
                         min(self.batch_size, total_records - start_position + 1)
@@ -177,7 +181,7 @@ class GCMDProcessor:
             self.files_to_check["non_unique_gcmd_keywords_file"], "w"
         ) as non_unique_set_file:
             non_unique_set_file.write(
-                "metadata_identifier, metadata_title, is_harvested, thesaurus_title, thesaurus_type, gcmd_keyword\n"
+                "metadata_identifier, metadata_title, is_harvested, thesaurus_title, thesaurus_type, gcmd_keyword, last_word\n"
             )
             for (
                 metadata_identifier,
@@ -187,27 +191,18 @@ class GCMDProcessor:
                 thesaurus_type,
                 keyword,
             ) in non_unique_set:
+                last_word = str(process_keyword(keyword.replace('"', ""))).upper()
                 non_unique_set_file.write(
-                    f'{metadata_identifier}, "{metadata_title}", {is_harvested}, "{thesaurus_title}", {thesaurus_type}, "{keyword}"\n'
+                    f'{metadata_identifier}, "{metadata_title}", {is_harvested}, "{thesaurus_title}", {thesaurus_type}, "{keyword}", "{last_word}"\n'
                 )
 
         with open(
-            self.files_to_check["non_unique_last_words_file"], "w"
-        ) as non_unique_set_file:
-            non_unique_set_file.write(
-                "metadata_identifier, metadata_title, is_harvested, thesaurus_title, thesaurus_type, last_word_term\n"
-            )
-            for (
-                metadata_identifier,
-                metadata_title,
-                is_harvested,
-                thesaurus_title,
-                thesaurus_type,
-                keyword,
-            ) in non_unique_set:
-                last_term_word = str(process_keyword(keyword.replace('"', ""))).upper()
-                non_unique_set_file.write(
-                    f'{metadata_identifier}, "{metadata_title}", {is_harvested}, "{thesaurus_title}", {thesaurus_type}, "{last_term_word}"\n'
+            self.files_to_check["is_harvested_by_identifier_file"], "w"
+        ) as is_harvested_by_identifier_file:
+            is_harvested_by_identifier_file.write("metadata_identifier, is_harvested\n")
+            for metadata_identifier, is_harvested in is_harvested_by_identifier:
+                is_harvested_by_identifier_file.write(
+                    f'"{metadata_identifier}", {is_harvested}\n'
                 )
 
         with open(

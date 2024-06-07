@@ -4,7 +4,7 @@
   "non_unique_gcmd_keywords_file": "non_unique_full_term_gcmd_keywords.csv",
   "unique_gcmd_thesaurus_file": "unique_gcmd_thesaurus.csv",
   "records_failed_file": "records_failed.txt",
-  "non_unique_last_words_file": "non_unique_last_term_word_gcmd_keywords.csv",
+  "is_harvested_by_identifier_file": "is_harvested_by_identifier.csv",
   "csw_url": "https://catalogue.aodn.org.au/geonetwork/srv/eng/csw?request=GetCapabilities&service=CSW&version=2.0.2",
   "output_schema": "http://standards.iso.org/iso/19115/-3/mdb/2.0",
   "batch_size": 10
