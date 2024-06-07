@@ -16,7 +16,6 @@ if __name__ == "__main__":
 
     if args.test:
         print(f"Running in test mode with {args.test} records.")
-        print("---------------------------------")
         processor.run(total_records=args.test)
     else:
         processor.run()
