@@ -37,19 +37,9 @@ def get_is_harvested(xml_string):
     is_harvested_tag = xml_doc.getElementsByTagName("isHarvested")
     if is_harvested_tag:
         for node in is_harvested_tag:
-            return node.firstChild.nodeValue
-    return None
-
-
-def validate_is_harvested_results(is_harvested_by_identifier):
-    total_y = 0
-    total_n = 0
-    for item in is_harvested_by_identifier:
-        if "y" in item[1]:
-            total_y += 1
-        elif "n" in item[1]:
-            total_n += 1
-    return total_y, total_n
+            if "y" in node.toxml().lower():
+                return True
+    return False
 
 
 def record_process(
@@ -65,7 +55,7 @@ def record_process(
     thesaurus_title = ""
     thesaurus_type = ""
     gcmd_keywords = []
-    is_harvested = "n/a"
+    is_harvested = get_is_harvested(record.xml)
 
     for item in record.identification:
         try:
@@ -86,7 +76,6 @@ def record_process(
                         and "palaeo temporal coverage" not in thesaurus["title"].lower()
                     ):
                         thesaurus_title = thesaurus["title"]
-                        is_harvested = get_is_harvested(record.xml)
                         try:
                             thesaurus_type = md_keywords.type
                         except TypeError:
@@ -207,9 +196,6 @@ class GCMDProcessor:
                     f'{metadata_identifier}, "{metadata_title}", {is_harvested}, "{thesaurus_title}", {thesaurus_type}, "{keyword}", "{last_word}"\n'
                 )
 
-        total_y, total_n = validate_is_harvested_results(is_harvested_by_identifier)
-        print(f"Total harvested records: {total_y}")
-        print(f"Total non-harvested records: {total_n}")
         with open(
             self.files_to_check["is_harvested_by_identifier_file"], "w"
         ) as is_harvested_by_identifier_file:
